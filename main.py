@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-import logging '8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A'
+import logging = 8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A
 GROUP_CHAT_ID = -1004493287292
 OWNER_IDS = [7545129896, 8184136446]
 
