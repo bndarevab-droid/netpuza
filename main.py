@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.client.default import DefaultBotProperties
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, ChatType
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 import logging
 
 TOKEN = '8655620590:AAFIkLnlmCN9kVd_8xggI9isiiFC1QL3AR4'
@@ -14,8 +13,7 @@ OWNER_IDS = [7545129896, 8184136446]
 
 logging.basicConfig(level=logging.INFO)
 
-# Обратите внимание: DefaultBotProperties обычно не нужен в Aiogram 3 
-# (в этой версии аргументы передаются прямо в Bot)
+# Инициализация бота
 bot = Bot(token=TOKEN) 
 
 dp = Dispatcher(storage=MemoryStorage())
@@ -121,7 +119,8 @@ def winners_menu_keyboard():
     return keyboard
 
 # --- Команда /start только для владельцев в ЛС ---
-@dp.message(Command("start"), F.chat.type == ChatType.PRIVATE)
+# ИСПРАВЛЕНИЕ: ChatType.PRIVATE заменено на строку "private"
+@dp.message(Command("start"), F.chat.type == "private")
 async def start_command(message: types.Message):
     user_id = message.from_user.id
     if user_id not in OWNER_IDS:
@@ -366,7 +365,8 @@ async def start_game(chat_id, user_id, username, first_name, message_id_to_edit=
     game_task = asyncio.create_task(timer_loop())
 
 # --- Обработчик сообщений в группе ---
-@dp.message(F.chat.id == GROUP_CHAT_ID, F.content_type == 'text')
+# ИСПРАВЛЕНИЕ: F.content_type == 'text' заменено на F.text (более правильно для aiogram 3)
+@dp.message(F.chat.id == GROUP_CHAT_ID, F.text)
 async def group_message_handler(message: types.Message):
     global bot_enabled
     if not bot_enabled:
