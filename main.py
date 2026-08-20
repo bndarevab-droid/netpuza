@@ -138,7 +138,8 @@ async def free_command(message: types.Message):
         await message.reply("⚠️ Бот временно отключен")
         return
     
-    if message.from_user.is_bot:
+    # ИСПРАВЛЕНИЕ: Игнорируем ботов и каналы (если нет from_user)
+    if message.from_user is None or message.from_user.is_bot:
         return
     
     chat_id = message.chat.id
@@ -371,7 +372,8 @@ async def group_message_handler(message: types.Message):
         # Бот выключен – игнорируем все сообщения
         return
 
-    if message.from_user.is_bot:
+    # ИСПРАВЛЕНИЕ: Если сообщение от канала или бота - игнорируем его
+    if message.from_user is None or message.from_user.is_bot:
         return
 
     # Проверяем, не команда ли это /free (чтобы не запускать игру на неё)
