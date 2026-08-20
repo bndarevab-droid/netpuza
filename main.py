@@ -119,7 +119,6 @@ def winners_menu_keyboard():
     return keyboard
 
 # --- Команда /start только для владельцев в ЛС ---
-# ИСПРАВЛЕНИЕ: ChatType.PRIVATE заменено на строку "private"
 @dp.message(Command("start"), F.chat.type == "private")
 async def start_command(message: types.Message):
     user_id = message.from_user.id
@@ -365,7 +364,6 @@ async def start_game(chat_id, user_id, username, first_name, message_id_to_edit=
     game_task = asyncio.create_task(timer_loop())
 
 # --- Обработчик сообщений в группе ---
-# ИСПРАВЛЕНИЕ: F.content_type == 'text' заменено на F.text (более правильно для aiogram 3)
 @dp.message(F.chat.id == GROUP_CHAT_ID, F.text)
 async def group_message_handler(message: types.Message):
     global bot_enabled
