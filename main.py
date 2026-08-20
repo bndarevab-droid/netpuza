@@ -10,18 +10,14 @@ import logging
 
 TOKEN = '8655620590:AAFIkLnlmCN9kVd_8xggI9isiiFC1QL3AR4'
 GROUP_CHAT_ID = -1004493287292
-OWNER_IDS = [7545129896, 8184136446]  # список владельцев
+OWNER_IDS = [7545129896, 8184136446]
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(
-    token=TOKEN,
-    default=DefaultBotProperties(
-        connect_timeout=120,
-        read_timeout=120,
-        write_timeout=120
-    )
-)
+# Обратите внимание: DefaultBotProperties обычно не нужен в Aiogram 3 
+# (в этой версии аргументы передаются прямо в Bot)
+bot = Bot(token=TOKEN) 
+
 dp = Dispatcher(storage=MemoryStorage())
 
 # --- Глобальные переменные ---
