@@ -593,3 +593,25 @@ async def group_message_handler(message: types.Message):
                 duration_minutes=event_params.get('minutes', 4),
                 message_id_to_edit=game_message.message_id if game_message else None
             )
+
+# --- Запуск ---
+async def send_startup_notification():
+    for owner_id in OWNER_IDS:
+        try:
+            await bot.send_message(owner_id, "✅ Бот запущен и подключен!")
+        except Exception as e:
+            logging.error(f"Не удалось отправить уведомление владельцу {owner_id}: {e}")
+
+async def main():
+    print("✅ Бот запущен! Ожидание соединения...")
+    await send_startup_notification()
+    while True:
+        try:
+            await dp.start_polling(bot, skip_updates=True)
+        except Exception as e:
+            logging.error(f"Ошибка: {e}. Переподключение через 10 секунд...")
+            await asyncio.sleep(10)
+            continue
+
+if __name__ == '__main__':
+    asyncio.run(main())
