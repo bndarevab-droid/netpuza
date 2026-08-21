@@ -561,7 +561,7 @@ async def stop_perebiv_callback(callback: CallbackQuery):
     if game_message:
         try:
                     await bot.edit_message_text(
-            "⏹ <b>Ивент «Перебив» остановлен администратором.</b>",
+                        "⏹ <b>Ивент «Перебив» остановлен администратором.</b>",
             chat_id=GROUP_CHAT_ID,
             message_id=game_message.message_id,
             parse_mode="HTML"
@@ -574,7 +574,14 @@ game_leader = None
 game_end_time = None
 active_event = None
 perebiv_minutes = None
-await callback.message.edit_text(
+
+try:  # <--- ВОТ ЭТА СТРОКА БЫЛА ПОТЕРЯНА
+    await callback.message.edit_text(
+        events_status_text(),
+        reply_markup=events_menu_keyboard(),
+    )
+except Exception:
+    pass
     events_status_text(),
     reply_markup=events_menu_keyboard(),
     parse_mode="HTML"
