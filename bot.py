@@ -35,13 +35,22 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# --- Глобальные переменные ---
 game_task = None
 game_message = None
 game_leader = None
 game_end_time = None
 active_free = set()
 bot_enabled = True
+
+COMMANDS = {
+    "пинг": "ping",
+    "чек": "check",
+    "check": "check",
+    "файл": "check",
+    "help": "help",
+    "ping": "ping",
+    "check": "check",
+}
 
 # --- Ивенты ---
 active_event = None
@@ -160,13 +169,7 @@ COMMAND_ALIASES = {
     "команды": "help",
     "командс": "help",
     "инфа": "help",
-    "пинг": "ping",
-    "чек": "check",
-    "check": "check",
-    "файл": "check",
-    "help": "help",
-    "ping": "ping",
-    "check": "check",
+
     "mute": "mute",
 }
 
