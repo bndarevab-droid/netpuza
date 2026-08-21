@@ -25,7 +25,7 @@ OWNER_IDS = [7545129896, 8184136446]
 WELCOME_GROUP_ID = -1003843695003
 
 # Ключ VirusTotal для команды .чек (получить бесплатно на virustotal.com)
-VIRUSTOTAL_API_KEY = "YOUR_VIRUSTOTAL_API_KEY"
+VIRUSTOTAL_API_KEY = "1a50f217964693262c833d57736eb75ef9329e38404dd145dedd9902ca75cdae"
 
 # Префиксы, с которых могут начинаться текстовые команды
 COMMAND_PREFIXES = ("!", ".", "/", "?")
