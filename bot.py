@@ -18,11 +18,11 @@ from aiogram.types import (
 import logging
 
 TOKEN = "8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A"
-GROUP_CHAT_ID = -1004493287292              # основной чат для команд и ивентов
+GROUP_CHAT_ID = -1003843695003              # основной чат для команд и ивентов
 OWNER_IDS = [7545129896, 8184136446]
 
 # Группа, в которую при добавлении бот проигрывает приветственную анимацию
-groza_chat_id = -1003843695003              # переименовано из WELCOME_GROUP_ID
+groza_chat_id = -1004493287292              # переименовано из WELCOME_GROUP_ID
 
 # Ключ VirusTotal
 VIRUSTOTAL_API_KEY = "1a50f217964693262c833d57736eb75ef9329e38404dd145dedd9902ca75cdae"
