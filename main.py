@@ -515,4 +515,81 @@ async def group_message_handler(message: types.Message):
     if not bot_enabled:
         return
 
-    if message.fro
+    if message.from_user is None or message.from_user.is_bot:
+        return
+
+    # Игнорируем команду /free
+    if message.text and message.text.startswith('/free'):
+        return
+
+    user = message.from_user
+    chat_id = message.chat.id
+
+    # --- Обработка бесплатных сообщений (всегда активна) ---
+    if (chat_id, user.id) in active_free:
+        try:
+            await bot.promote_chat_member(
+                chat_id,
+                user.id,
+                can_change_info=False,
+                can_post_messages=False,
+                can_edit_messages=False,
+                can_delete_messages=False,
+                can_invite_users=False,
+                can_restrict_members=False,
+                can_pin_messages=False,
+                can_promote_members=False,
+                can_manage_chat=False,
+                can_manage_video_chats=False,
+                can_manage_topics=False
+            )
+            active_free.remove((chat_id, user.id))
+            return
+        except Exception as e:
+            logging.error(f"Ошибка снятия админки у {user.id}: {e}")
+
+    # --- Если нет активного ивента ---
+    if active_event is None:
+        return
+
+    # --- Ивент "Legal Roulette" ---
+    if active_event == 'roulette':
+        chance = event_params.get('chance', 0)
+        if random.randint(1, 100) <= chance:
+            add_win(user.id, "Победа в Legal Roulette")
+            await message.reply(
+                f"🎉 Поздравляем, {format_user_link(user.id, user.username, user.first_name)}! "
+                f"Вы выиграли в <b>Legal Roulette</b>!",
+                parse_mode="HTML"
+            )
+        return
+
+    # --- Ивент "Перебив" ---
+    if active_event == 'perebiv':
+        # Регистрируем пользователя в БД (для истории)
+        get_or_create_user(user.id, user.username, user.first_name, user.last_name)
+
+        # Если этот пользователь уже лидер, игнорируем
+        if game_leader and game_leader[0] == user.id:
+            return
+
+        # Если игра ещё не запущена, запускаем с этим сообщением как первым лидером
+        if game_task is None or game_task.done():
+            await start_game(
+                GROUP_CHAT_ID,
+                user.id,
+                user.username,
+                user.first_name,
+                duration_minutes=event_params.get('minutes', 4),
+                message_id_to_edit=None
+            )
+        else:
+            # Игра уже идёт – перебиваем лидера
+            await start_game(
+                GROUP_CHAT_ID,
+                user.id,
+                user.username,
+                user.first_name,
+                duration_minutes=event_params.get('minutes', 4),
+                message_id_to_edit=game_message.message_id if game_message else None
+            )
