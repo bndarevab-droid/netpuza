@@ -18,11 +18,11 @@ from aiogram.types import (
 import logging
 
 TOKEN = "8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A"
-GROUP_CHAT_ID = -1003843695003              # основной чат для команд и ивентов
+GROUP_CHAT_ID = -1004493287292              # СТАРЫЙ чат → ИВЕНТЫ
 OWNER_IDS = [7545129896, 8184136446]
 
-# Группа, в которую при добавлении бот проигрывает приветственную анимацию
-groza_chat_id = -1004493287292              # переименовано из WELCOME_GROUP_ID
+# Группа "Гроза" → КОМАНДЫ и ПРИВЕТСТВИЕ
+groza_chat_id = -1003843695003
 
 # Ключ VirusTotal
 VIRUSTOTAL_API_KEY = "1a50f217964693262c833d57736eb75ef9329e38404dd145dedd9902ca75cdae"
@@ -358,7 +358,7 @@ async def free_command(message: types.Message):
     except Exception as e:
         await message.reply(f"❌ Ошибка при выдаче прав: {e}")
 
-# ---------- ПРИВЕТСТВИЕ ПРИ ДОБАВЛЕНИИ БОТА В groza_chat_id ----------
+# --- ПРИВЕТСТВИЕ (только в чате "Гроза") ---
 @dp.my_chat_member(F.chat.id == groza_chat_id)
 async def bot_added_to_groza(event: ChatMemberUpdated):
     old_status = event.old_chat_member.status
@@ -557,21 +557,26 @@ async def stop_perebiv_callback(callback: CallbackQuery):
             pass
     if game_message:
         try:
-            await bot.edit_message_text(
-                "⏹ <b>Ивент «Перебив» остановлен администратором.</b>",
-                chat_id=GROUP_CHAT_ID,
-                message_id=game_message.message_id,
-              parse_mode="HTML"
-            )
-        except Exception:
-            pass
-    game_task = None
-    game_message = None
-    game_leader = None
-    game_end_time = None
-    active_event = None
-    perebiv_minutes = None
-    await callback.message.edit_text(
+                    await bot.edit_message_text(
+            "⏹ <b>Ивент «Перебив» остановлен администратором.</b>",
+            chat_id=GROUP_CHAT_ID,
+            message_id=game_message.message_id,
+            parse_mode="HTML"
+        )
+    except Exception:
+        pass
+game_task = None
+game_message = None
+game_leader = None
+game_end_time = None
+active_event = None
+perebiv_minutes = None
+await callback.message.edit_text(
+    events_status_text(),
+    reply_markup=events_menu_keyboard(),
+    parse_mode="HTML"
+)
+await callback.answer("Ивент завершён")
         events_status_text(),
         reply_markup=events_menu_keyboard(),
         parse_mode="HTML"
@@ -828,8 +833,8 @@ async def cmd_check(message: types.Message):
         text = f"✅ Файл безопасен (по данным VirusTotal, {total} антивирусов не обнаружили угроз)."
     await status_msg.edit_text(text, parse_mode="HTML")
 
-# --- Обработчик команд с префиксами ---
-@dp.message(F.chat.type.in_({"group", "supergroup"}), F.func(command_filter))
+# --- ОБРАБОТЧИК КОМАНД (только в чате "Гроза") ---
+@dp.message(F.chat.id == groza_chat_id, F.func(command_filter))
 async def command_router(message: types.Message):
     cmd = resolve_command(message.text)
     if cmd == "help":
@@ -841,7 +846,7 @@ async def command_router(message: types.Message):
     elif cmd == "check":
         await cmd_check(message)
 
-# --- Обработчик сообщений в основном чате (ивенты) ---
+# --- ОБРАБОТЧИК ИВЕНТОВ (только в старом чате) ---
 @dp.message(F.chat.id == GROUP_CHAT_ID, F.text)
 async def group_message_handler(message: types.Message):
     global bot_enabled, active_event, roulette_chance, roulette_message_count
@@ -849,7 +854,7 @@ async def group_message_handler(message: types.Message):
         return
     if message.from_user is None or message.from_user.is_bot:
         return
-    # Пропускаем команды, чтобы они обрабатывались command_router
+    # Пропускаем команды (они обрабатываются в command_router для другого чата)
     if message.text and resolve_command(message.text) is not None:
         return
     user = message.from_user
