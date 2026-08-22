@@ -138,7 +138,7 @@ async def is_chat_admin(chat_id, user_id):
 HELP_TEXT = (
     "Я #нетпуза, вот мои команды:\n\n"
     ".тише/.помолчи/.успокойся - отправляет успокоится на 1 минуту.\n"
-    ".команды/.командс/.инфа - показывает список команд\n"
+    ".команды/.командс/.инфо/.инфа - показывает список команд\n"
     ".пинг - показывает пинг бота\n"
     ".чек/.check/.файл - анализ файла и проверка на трояны, майнеры и всякие вирусы\n\n"
     "Использование административных команд в отношении других администраторов чата присекаются."
@@ -151,6 +151,7 @@ COMMAND_ALIASES = {
     "команды": "help",
     "командс": "help",
     "инфа": "help",
+    "инфо": "help",
     "пинг": "ping",
     "ping": "ping",
     "чек": "check",
@@ -377,7 +378,8 @@ async def bot_added_to_groza(event: ChatMemberUpdated):
             await bot.delete_message(chat_id, m.message_id)
         except Exception:
             pass
-    await bot.send_message(chat_id, HELP_TEXT)# --- Callback-обработчики ---
+    await bot.send_message(chat_id, HELP_TEXT)
+    # --- Callback-обработчики ---
 @dp.callback_query(F.data == "main_menu")
 async def main_menu_callback(callback: CallbackQuery, state: FSMContext):
     if callback.from_user.id not in OWNER_IDS:
