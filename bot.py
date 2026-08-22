@@ -5,6 +5,7 @@ import time
 import difflib
 import hashlib
 import aiohttp
+import logging
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
@@ -15,19 +16,14 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery,
     ChatPermissions, ChatMemberUpdated
 )
-import logging
 
+# --- Конфигурация ---
 TOKEN = "8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A"
-GROUP_CHAT_ID = -1004493287292              # СТАРЫЙ чат → ИВЕНТЫ
+GROUP_CHAT_ID = -1004493287292              # Чат для ивентов
 OWNER_IDS = [7545129896, 8184136446]
+groza_chat_id = -1003843695003              # Чат "Гроза"
 
-# Группа "Гроза" → КОМАНДЫ и ПРИВЕТСТВИЕ
-groza_chat_id = -1003843695003
-
-# Ключ VirusTotal
 VIRUSTOTAL_API_KEY = "1a50f217964693262c833d57736eb75ef9329e38404dd145dedd9902ca75cdae"
-
-# Префиксы команд
 COMMAND_PREFIXES = ("!", ".", "/", "?")
 
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +31,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
+# Глобальные переменные
 game_task = None
 game_message = None
 game_leader = None
@@ -42,7 +39,6 @@ game_end_time = None
 active_free = set()
 bot_enabled = True
 
-# --- Ивенты ---
 active_event = None
 roulette_chance = None
 roulette_message_count = 0
@@ -115,8 +111,7 @@ init_db()
 def format_user_link(user_id, username, first_name):
     if username:
         return f"@{username}"
-    else:
-        return f'<a href="tg://user?id={user_id}">{first_name}</a>'
+    return f'<a href="tg://user?id={user_id}">{first_name}</a>'
 
 def format_datetime_moscow(dt):
     msk_dt = dt + timedelta(hours=3)
@@ -386,7 +381,7 @@ async def bot_added_to_groza(event: ChatMemberUpdated):
         except Exception:
             pass
     await bot.send_message(chat_id, HELP_TEXT)
-# --- Callback-обработчики ---
+    # --- Callback-обработчики ---
 @dp.callback_query(F.data == "main_menu")
 async def main_menu_callback(callback: CallbackQuery, state: FSMContext):
     if callback.from_user.id not in OWNER_IDS:
@@ -659,7 +654,6 @@ async def handle_event_messages(message: types.Message):
     # Перебив
     if active_event == "perebiv":
         # Участник перебил: новый лидер
-        previous_leader = game_leader
         game_leader = (message.from_user.id, message.from_user.username, message.from_user.first_name)
         game_end_time = datetime.now() + timedelta(minutes=perebiv_minutes)
 
@@ -704,7 +698,7 @@ async def handle_event_messages(message: types.Message):
                 except Exception:
                     pass
                 # Завершаем ивент
-                nonlocal active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
+                global active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
                 active_event = None
                 perebiv_minutes = None
                 game_task = None
@@ -759,12 +753,10 @@ async def handle_text_commands(message: types.Message):
             await message.reply("❌ Ботам нельзя выдавать мут.")
             return
         try:
-            # Проверяем, не админ ли цель
             target_member = await bot.get_chat_member(message.chat.id, target_user.id)
             if target_member.status in ('administrator', 'creator'):
                 await message.reply("⚠️ Нельзя мутить администраторов.")
                 return
-            # Мутим на 1 минуту
             until_date = datetime.now() + timedelta(minutes=1)
             await bot.restrict_chat_member(
                 message.chat.id,
@@ -789,7 +781,6 @@ async def handle_text_commands(message: types.Message):
         await msg.edit_text(f"🏓 Понг! Время отклика: {round((end - start) * 1000, 2)} мс")
 
     elif command == "check":
-        # Проверка файла (если реплай на файл)
         if message.reply_to_message and message.reply_to_message.document:
             file_id = message.reply_to_message.document.file_id
             file = await bot.get_file(file_id)
@@ -800,9 +791,43 @@ async def handle_text_commands(message: types.Message):
         else:
             await message.reply("❌ Ответьте на сообщение с файлом для проверки.")
 
+# --- Обработка ошибок (пересылка владельцам) ---
+@dp.errors()
+async def errors_handler(update: types.Update, exception):
+    # Логируем в консоль
+    logging.exception("Exception while handling an update:", exc_info=exception)
+    # Отправляем сообщение владельцам
+    for owner_id in OWNER_IDS:
+        try:
+            await bot.send_message(
+                owner_id,
+                f"⚠️ <b>Ошибка в боте</b>\n\n"
+                f"<code>{exception}</code>\n\n"
+                f"Update: <code>{update.model_dump_json(indent=2, exclude_none=True)[:1000]}</code>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+    return True
+
 # --- Запуск ---
 async def main():
-    await dp.start_polling(bot)
+    # Уведомление о запуске
+    for owner_id in OWNER_IDS:
+        try:
+            await bot.send_message(owner_id, "✅ Бот запущен и готов к работе!")
+        except Exception:
+            pass
+
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        for owner_id in OWNER_IDS:
+            try:
+                await bot.send_message(owner_id, f"❌ Бот упал с ошибкой:\n{e}")
+            except Exception:
+                pass
+        raise
 
 if __name__ == "__main__":
     asyncio.run(main())
