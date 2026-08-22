@@ -380,8 +380,7 @@ async def bot_added_to_groza(event: ChatMemberUpdated):
             await bot.delete_message(chat_id, m.message_id)
         except Exception:
             pass
-    await bot.send_message(chat_id, HELP_TEXT)
-    # --- Callback-обработчики ---
+    await bot.send_message(chat_id, HELP_TEXT)# --- Callback-обработчики ---
 @dp.callback_query(F.data == "main_menu")
 async def main_menu_callback(callback: CallbackQuery, state: FSMContext):
     if callback.from_user.id not in OWNER_IDS:
@@ -617,9 +616,7 @@ async def process_perebiv_minutes(message: types.Message, state: FSMContext):
         game_message = None
         game_task = None
     except ValueError:
-        await message.answer("❌ Введите целое число.")
-
-# --- Обработка сообщений в группе для ивентов ---
+        await message.answer("❌ Введите целое число.")# --- Обработка сообщений в группе для ивентов ---
 @dp.message(F.chat.id == GROUP_CHAT_ID, F.content_type.in_({'text', 'photo', 'video', 'document', 'sticker', 'voice', 'video_note', 'animation'}))
 async def handle_event_messages(message: types.Message):
     global game_leader, game_end_time, game_task, game_message, active_event, roulette_message_count
@@ -698,7 +695,7 @@ async def handle_event_messages(message: types.Message):
                 except Exception:
                     pass
                 # Завершаем ивент
-                global active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
+                nonlocal active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
                 active_event = None
                 perebiv_minutes = None
                 game_task = None
