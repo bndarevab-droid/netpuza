@@ -42,16 +42,6 @@ game_end_time = None
 active_free = set()
 bot_enabled = True
 
-COMMANDS = {
-    "пинг": "ping",
-    "чек": "check",
-    "check": "check",
-    "файл": "check",
-    "help": "help",
-    "ping": "ping",
-    "check": "check",
-}
-
 # --- Ивенты ---
 active_event = None
 roulette_chance = None
@@ -169,7 +159,12 @@ COMMAND_ALIASES = {
     "команды": "help",
     "командс": "help",
     "инфа": "help",
-
+    "пинг": "ping",
+    "ping": "ping",
+    "чек": "check",
+    "check": "check",
+    "файл": "check",
+    "help": "help",
     "mute": "mute",
 }
 
@@ -391,7 +386,6 @@ async def bot_added_to_groza(event: ChatMemberUpdated):
         except Exception:
             pass
     await bot.send_message(chat_id, HELP_TEXT)
-
 # --- Callback-обработчики ---
 @dp.callback_query(F.data == "main_menu")
 async def main_menu_callback(callback: CallbackQuery, state: FSMContext):
@@ -560,394 +554,255 @@ async def stop_perebiv_callback(callback: CallbackQuery):
             pass
     if game_message:
         try:
-                    await bot.edit_message_text(
-                        "⏹ <b>Ивент «Перебив» остановлен администратором.</b>",
-            chat_id=GROUP_CHAT_ID,
-            message_id=game_message.message_id,
-            parse_mode="HTML"
-        )
-    except Exception:
-        pass
-game_task = None
-game_message = None
-game_leader = None
-game_end_time = None
-active_event = None
-perebiv_minutes = None
-
-try:  # <--- ВОТ ЭТА СТРОКА БЫЛА ПОТЕРЯНА
+            await bot.edit_message_text(
+                "⏹ <b>Ивент «Перебив» остановлен администратором.</b>",
+                chat_id=GROUP_CHAT_ID,
+                message_id=game_message.message_id,
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+    game_task = None
+    game_message = None
+    game_leader = None
+    game_end_time = None
+    active_event = None
+    perebiv_minutes = None
     await callback.message.edit_text(
-        events_status_text(),
-        reply_markup=events_menu_keyboard(),
-    )
-except Exception:
-    pass
-    events_status_text(),
-    reply_markup=events_menu_keyboard(),
-    parse_mode="HTML"
-)
-await callback.answer("Ивент завершён")
         events_status_text(),
         reply_markup=events_menu_keyboard(),
         parse_mode="HTML"
     )
     await callback.answer("Ивент завершён")
 
-# --- Приём деталей ивентов (в ЛС) ---
-@dp.message(EventSetup.waiting_roulette_chance, F.chat.type == "private")
+# --- Обработчики состояний (ввод параметров ивентов) ---
+@dp.message(EventSetup.waiting_roulette_chance)
 async def process_roulette_chance(message: types.Message, state: FSMContext):
     global active_event, roulette_chance, roulette_message_count
     if message.from_user.id not in OWNER_IDS:
         return
-    text = message.text.strip().replace('%', '').replace(',', '.')
     try:
-        chance = float(text)
-    except ValueError:
-        await message.reply("❌ Введите число, например 5 или 2.5", reply_markup=cancel_setup_keyboard())
-        return
-    if not (0 < chance <= 100):
-        await message.reply("❌ Шанс должен быть больше 0 и не больше 100", reply_markup=cancel_setup_keyboard())
-        return
-    if active_event is not None:
+        chance = float(message.text.replace(',', '.').strip())
+        if chance <= 0 or chance > 100:
+            await message.answer("❌ Введите число от 0 до 100 (не включительно 0).")
+            return
+        roulette_chance = chance
+        active_event = "roulette"
+        roulette_message_count = 0
         await state.clear()
-        await message.answer("⚠️ Другой ивент уже был запущен раньше. Отменено.")
-        return
-    active_event = "roulette"
-    roulette_chance = chance
-    roulette_message_count = 0
-    await state.clear()
-    await message.answer(
-        events_status_text(),
-        reply_markup=events_menu_keyboard(),
-        parse_mode="HTML"
-    )
+        await message.answer(
+            f"✅ Ивент {EVENT_TITLES['roulette']} запущен!\n"
+            f"Шанс: {chance}%",
+            parse_mode="HTML"
+        )
+    except ValueError:
+        await message.answer("❌ Введите корректное число.")
 
-@dp.message(EventSetup.waiting_perebiv_minutes, F.chat.type == "private")
+@dp.message(EventSetup.waiting_perebiv_minutes)
 async def process_perebiv_minutes(message: types.Message, state: FSMContext):
-    global active_event, perebiv_minutes
+    global active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
     if message.from_user.id not in OWNER_IDS:
         return
-    text = message.text.strip()
     try:
-        minutes = int(text)
-    except ValueError:
-        await message.reply("❌ Введите целое число минут (1-30)", reply_markup=cancel_setup_keyboard())
-        return
-    if not (1 <= minutes <= 30):
-        await message.reply("❌ Число должно быть от 1 до 30", reply_markup=cancel_setup_keyboard())
-        return
-    if active_event is not None:
+        minutes = int(message.text.strip())
+        if minutes < 1 or minutes > 30:
+            await message.answer("❌ Введите целое число от 1 до 30.")
+            return
+        perebiv_minutes = minutes
+        active_event = "perebiv"
         await state.clear()
-        await message.answer("⚠️ Другой ивент уже был запущен раньше. Отменено.")
-        return
-    active_event = "perebiv"
-    perebiv_minutes = minutes
-    await state.clear()
-    await message.answer(
-        events_status_text(),
-        reply_markup=events_menu_keyboard(),
-        parse_mode="HTML"
-    )
+        await message.answer(
+            f"✅ Ивент {EVENT_TITLES['perebiv']} запущен!\n"
+            f"Время удержания: {minutes} мин.",
+            parse_mode="HTML"
+        )
+        # Инициализация перебива
+        game_leader = None
+        game_end_time = None
+        game_message = None
+        game_task = None
+    except ValueError:
+        await message.answer("❌ Введите целое число.")
 
-# --- Игра "Перебив" ---
-async def start_game(chat_id, user_id, username, first_name, minutes, message_id_to_edit=None):
-    global game_task, game_message, game_leader, game_end_time
-    if game_task and not game_task.done():
-        game_task.cancel()
-        try:
-            await game_task
-        except asyncio.CancelledError:
-            pass
-    leader_display = format_user_link(user_id, username, first_name)
-    game_leader = (user_id, username, first_name)
-    if message_id_to_edit is None:
-        msg = await bot.send_message(
-            chat_id,
-            f"⚡ <b>Перебито!</b>\n"
-            f"Новый лидер: {leader_display}\n"
-            f"⏳ До конца: <b>{minutes} мин.</b>",
-            parse_mode="HTML"
-        )
-        game_message = msg
-    else:
-        game_message = await bot.edit_message_text(
-            f"⚡ <b>Перебито!</b>\n"
-            f"Новый лидер: {leader_display}\n"
-            f"⏳ До конца: <b>{minutes} мин.</b>",
-            chat_id=chat_id,
-            message_id=message_id_to_edit,
-            parse_mode="HTML"
-        )
-    game_end_time = datetime.now() + timedelta(minutes=minutes)
-    async def timer_loop():
-        global game_task, game_message, game_leader, game_end_time, active_event, perebiv_minutes
-        nonlocal leader_display
-        remaining = minutes
-        while remaining > 0:
-            await asyncio.sleep(60)
-            remaining -= 1
-            if remaining > 0:
+# --- Обработка сообщений в группе для ивентов ---
+@dp.message(F.chat.id == GROUP_CHAT_ID, F.content_type.in_({'text', 'photo', 'video', 'document', 'sticker', 'voice', 'video_note', 'animation'}))
+async def handle_event_messages(message: types.Message):
+    global game_leader, game_end_time, game_task, game_message, active_event, roulette_message_count
+    if not bot_enabled:
+        return
+    if message.from_user.is_bot:
+        return
+
+    # Legal Roulette
+    if active_event == "roulette":
+        roulette_message_count += 1
+        if roulette_message_count > 5:  # Первые 5 сообщений не участвуют
+            if random.random() * 100 < roulette_chance:
+                # Выигрыш
+                winner = message.from_user
+                prize = "Победа в Legal Roulette"
+                add_win(winner.id, prize)
                 try:
-                    await bot.edit_message_text(
-                        f"⚡ <b>Перебито!</b>\n"
-                        f"Новый лидер: {leader_display}\n"
-                        f"⏳ До конца: <b>{remaining} мин.</b>",
-                        chat_id=chat_id,
-                        message_id=game_message.message_id,
+                    await message.reply(
+                        f"🎉 <b>{format_user_link(winner.id, winner.username, winner.first_name)}</b> "
+                        f"выиграл(а) в {EVENT_TITLES['roulette']}!",
                         parse_mode="HTML"
                     )
                 except Exception:
                     pass
-            else:
+                active_event = None
+                roulette_chance = None
+                roulette_message_count = 0
+                return
+        return
+
+    # Перебив
+    if active_event == "perebiv":
+        # Участник перебил: новый лидер
+        previous_leader = game_leader
+        game_leader = (message.from_user.id, message.from_user.username, message.from_user.first_name)
+        game_end_time = datetime.now() + timedelta(minutes=perebiv_minutes)
+
+        if game_task and not game_task.done():
+            game_task.cancel()
+            try:
+                await game_task
+            except asyncio.CancelledError:
+                pass
+
+        # Удаляем прошлое сообщение-таймер, если оно было
+        if game_message:
+            try:
+                await bot.delete_message(GROUP_CHAT_ID, game_message.message_id)
+            except Exception:
+                pass
+
+        # Отправляем новое сообщение-таймер
+        game_message = await bot.send_message(
+            GROUP_CHAT_ID,
+            f"⚡ <b>Перебив!</b>\n"
+            f"Лидер: {format_user_link(game_leader[0], game_leader[1], game_leader[2])}\n"
+            f"Удерживайте лидерство {perebiv_minutes} мин.",
+            parse_mode="HTML"
+        )
+
+        # Запускаем задачу проверки времени
+        async def check_perebiv():
+            await asyncio.sleep(perebiv_minutes * 60)
+            # Если лидер не сменился, он выиграл
+            if game_leader and game_leader[0] == message.from_user.id and active_event == "perebiv":
+                winner_id, username, first_name = game_leader
+                prize = "Победа в Перебиве"
+                add_win(winner_id, prize)
                 try:
-                    await bot.edit_message_text(
-                        f"⏰ <b>Время закончилось.</b>\n"
-                        f"🏆 Победитель: {leader_display}",
-                        chat_id=chat_id,
-                        message_id=game_message.message_id,
+                    await bot.send_message(
+                        GROUP_CHAT_ID,
+                        f"🎉 <b>{format_user_link(winner_id, username, first_name)}</b> "
+                        f"удержал(а) лидерство и победил(а) в {EVENT_TITLES['perebiv']}!",
                         parse_mode="HTML"
                     )
-                    add_win(user_id, prize='Перебив')
                 except Exception:
                     pass
+                # Завершаем ивент
+                nonlocal active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
+                active_event = None
+                perebiv_minutes = None
                 game_task = None
+                if game_message:
+                    try:
+                        await bot.delete_message(GROUP_CHAT_ID, game_message.message_id)
+                    except Exception:
+                        pass
                 game_message = None
                 game_leader = None
                 game_end_time = None
-                active_event = None
-                perebiv_minutes = None
-                break
-    game_task = asyncio.create_task(timer_loop())
 
-# --- Реализации команд ---
-async def cmd_help(message: types.Message):
-    await message.reply(HELP_TEXT)
+        game_task = asyncio.create_task(check_perebiv())
 
-async def cmd_ping(message: types.Message):
-    start = time.monotonic()
-    sent = await message.reply("🏓 Понг...")
-    elapsed_ms = (time.monotonic() - start) * 1000
-    try:
-        await sent.edit_text(f"🏓 Понг! {elapsed_ms:.0f} мс")
-    except Exception:
-        pass
-
-async def cmd_mute(message: types.Message):
-    chat_id = message.chat.id
-    invoker = message.from_user
-    if not await is_chat_admin(chat_id, invoker.id):
-        return
-    if not message.reply_to_message or message.reply_to_message.from_user is None:
-        await message.reply("❌ Нужно ответить на сообщение того, кого утихомирить.")
-        return
-    target = message.reply_to_message.from_user
-    if target.is_bot:
-        await message.reply("❌ Ботов утихомирить нельзя.")
-        return
-    if await is_chat_admin(chat_id, target.id):
-        await message.reply("⛔отказано")
-        return
-    try:
-        await bot.restrict_chat_member(
-            chat_id,
-            target.id,
-            permissions=ChatPermissions(can_send_messages=False),
-            until_date=datetime.now() + timedelta(minutes=1)
-        )
-    except Exception as e:
-        await message.reply(f"❌ Не удалось выдать ограничение: {e}")
-        return
-    mention = f"@{target.username}" if target.username else format_user_link(target.id, None, target.first_name)
-    await message.answer(f"{mention} успокойся", parse_mode="HTML")
-
-async def cmd_check(message: types.Message):
-    if not message.reply_to_message or not message.reply_to_message.document:
-        await message.reply("❌ Команду нужно использовать в ответ на сообщение с файлом.")
-        return
-    if not VIRUSTOTAL_API_KEY or VIRUSTOTAL_API_KEY == "YOUR_VIRUSTOTAL_API_KEY":
-        await message.reply("⚠️ Проверка файлов не настроена (не задан VIRUSTOTAL_API_KEY).")
-        return
-    doc = message.reply_to_message.document
-    status_msg = await message.reply("🔍 Анализирую файл...")
-    try:
-        tg_file = await bot.get_file(doc.file_id)
-        file_io = await bot.download_file(tg_file.file_path)
-        file_bytes = file_io.read()
-    except Exception as e:
-        await status_msg.edit_text(f"❌ Не удалось скачать файл: {e}")
-        return
-    file_hash = hashlib.sha256(file_bytes).hexdigest()
-    headers = {"x-apikey": VIRUSTOTAL_API_KEY}
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"https://www.virustotal.com/api/v3/files/{file_hash}", headers=headers
-            ) as resp:
-                data = None
-                if resp.status == 200:
-                    data = await resp.json()
-                elif resp.status == 404:
-                    form = aiohttp.FormData()
-                    form.add_field("file", file_bytes, filename=doc.file_name or "file")
-                    async with session.post(
-                        "https://www.virustotal.com/api/v3/files", headers=headers, data=form
-                    ) as up_resp:
-                        if up_resp.status not in (200, 201):
-                            await status_msg.edit_text("❌ Ошибка загрузки файла в VirusTotal.")
-                            return
-                        up_data = await up_resp.json()
-                        analysis_id = up_data["data"]["id"]
-                    for _ in range(10):
-                        await asyncio.sleep(3)
-                        async with session.get(
-                            f"https://www.virustotal.com/api/v3/analyses/{analysis_id}",
-                            headers=headers
-                        ) as an_resp:
-                            an_data = await an_resp.json()
-                            if an_data["data"]["attributes"]["status"] == "completed":
-                                async with session.get(
-                                    f"https://www.virustotal.com/api/v3/files/{file_hash}",
-                                    headers=headers
-                                ) as f_resp:
-                                    if f_resp.status == 200:
-                                        data = await f_resp.json()
-                                break
-                    if data is None:
-                        await status_msg.edit_text(
-                            "⏳ Файл ещё анализируется VirusTotal, попробуйте проверить его чуть позже."
-                        )
-                        return
-                else:
-                    await status_msg.edit_text(f"❌ Ошибка VirusTotal API: {resp.status}")
-                    return
-    except Exception as e:
-        await status_msg.edit_text(f"❌ Ошибка при обращении к VirusTotal: {e}")
-        return
-    stats = data["data"]["attributes"]["last_analysis_stats"]
-    malicious = stats.get("malicious", 0)
-    suspicious = stats.get("suspicious", 0)
-    total = sum(stats.values())
-    if malicious > 0 or suspicious > 0:
-        results = data["data"]["attributes"]["last_analysis_results"]
-        threats = []
-        for engine, res in results.items():
-            if res.get("category") in ("malicious", "suspicious") and res.get("result"):
-                threats.append(f"• {engine}: {res['result']}")
-        threats_text = "\n".join(threats[:15]) or "детали недоступны"
-        text = (
-            f"⚠️ <b>ОПАСНО!</b>\n"
-            f"Обнаружено угроз: {malicious + suspicious} из {total} антивирусов.\n\n"
-            f"{threats_text}"
-        )
-    else:
-        text = f"✅ Файл безопасен (по данным VirusTotal, {total} антивирусов не обнаружили угроз)."
-    await status_msg.edit_text(text, parse_mode="HTML")
-
-# --- ОБРАБОТЧИК КОМАНД (только в чате "Гроза") ---
-@dp.message(F.chat.id == groza_chat_id, F.func(command_filter))
-async def command_router(message: types.Message):
-    cmd = resolve_command(message.text)
-    if cmd == "help":
-        await cmd_help(message)
-    elif cmd == "ping":
-        await cmd_ping(message)
-    elif cmd == "mute":
-        await cmd_mute(message)
-    elif cmd == "check":
-        await cmd_check(message)
-
-# --- ОБРАБОТЧИК ИВЕНТОВ (только в старом чате) ---
-@dp.message(F.chat.id == GROUP_CHAT_ID, F.text)
-async def group_message_handler(message: types.Message):
-    global bot_enabled, active_event, roulette_chance, roulette_message_count
+# --- Команды (mute, help, ping, check) ---
+@dp.message(F.chat.type.in_({"group", "supergroup"}), command_filter)
+async def handle_text_commands(message: types.Message):
     if not bot_enabled:
         return
-    if message.from_user is None or message.from_user.is_bot:
-        return
-    # Пропускаем команды (они обрабатываются в command_router для другого чата)
-    if message.text and resolve_command(message.text) is not None:
-        return
-    user = message.from_user
-    chat_id = message.chat.id
-    if (chat_id, user.id) in active_free:
-        try:
-            await bot.promote_chat_member(
-                chat_id,
-                user.id,
-                can_change_info=False,
-                can_post_messages=False,
-                can_edit_messages=False,
-                can_delete_messages=False,
-                can_invite_users=False,
-                can_restrict_members=False,
-                can_pin_messages=False,
-                can_promote_members=False,
-                can_manage_chat=False,
-                can_manage_video_chats=False,
-                can_manage_topics=False
-            )
-            active_free.remove((chat_id, user.id))
+    command = resolve_command(message.text)
+    if command == "mute":
+        # Проверяем права
+        if not await is_chat_admin(message.chat.id, message.from_user.id):
+            await message.reply("❌ У вас нет прав администратора.")
             return
-        except Exception as e:
-            logging.error(f"Ошибка снятия админки у {user.id}: {e}")
-    get_or_create_user(user.id, user.username, user.first_name, user.last_name)
-    if active_event == "roulette":
-        roulette_message_count += 1
-        if roulette_message_count <= 5:
-            return
-        if random.uniform(0, 100) < roulette_chance:
-            add_win(user.id, prize='Legal Roulette')
-            await message.reply(
-                f"🎉 <b>Приз!</b>\n"
-                f"{format_user_link(user.id, user.username, user.first_name)} выиграл(а) в Legal Roulette!\n"
-                f"🏁 Ивент завершён.",
-                parse_mode="HTML"
-            )
-            active_event = None
-            roulette_chance = None
-            roulette_message_count = 0
-        return
-    if active_event == "perebiv":
-        if game_leader and game_leader[0] == user.id:
-            return
-        if game_message:
-            await start_game(
-                GROUP_CHAT_ID,
-                user.id,
-                user.username,
-                user.first_name,
-                perebiv_minutes,
-                message_id_to_edit=game_message.message_id
-            )
+        target_user = None
+        if message.reply_to_message:
+            target_user = message.reply_to_message.from_user
         else:
-            await start_game(
-                GROUP_CHAT_ID,
-                user.id,
-                user.username,
-                user.first_name,
-                perebiv_minutes,
-                message_id_to_edit=None
+            parts = message.text.split(maxsplit=1)
+            if len(parts) > 1:
+                arg = parts[1].strip()
+                try:
+                    user_id = int(arg)
+                    member = await bot.get_chat_member(message.chat.id, user_id)
+                    target_user = member.user
+                except:
+                    if arg.startswith('@'):
+                        arg = arg[1:]
+                    try:
+                        member = await bot.get_chat_member(message.chat.id, arg)
+                        target_user = member.user
+                    except:
+                        await message.reply("❌ Пользователь не найден.")
+                        return
+            else:
+                await message.reply("❌ Ответьте на сообщение или укажите ID/username.")
+                return
+        if not target_user:
+            return
+        if target_user.is_bot:
+            await message.reply("❌ Ботам нельзя выдавать мут.")
+            return
+        try:
+            # Проверяем, не админ ли цель
+            target_member = await bot.get_chat_member(message.chat.id, target_user.id)
+            if target_member.status in ('administrator', 'creator'):
+                await message.reply("⚠️ Нельзя мутить администраторов.")
+                return
+            # Мутим на 1 минуту
+            until_date = datetime.now() + timedelta(minutes=1)
+            await bot.restrict_chat_member(
+                message.chat.id,
+                target_user.id,
+                permissions=ChatPermissions(can_send_messages=False),
+                until_date=until_date
             )
-        return
+            await message.reply(
+                f"🔇 {format_user_link(target_user.id, target_user.username, target_user.first_name)} "
+                f"отправлен(а) успокоиться на 1 минуту."
+            )
+        except Exception as e:
+            await message.reply(f"❌ Ошибка: {e}")
+
+    elif command == "help":
+        await message.reply(HELP_TEXT)
+
+    elif command == "ping":
+        start = time.time()
+        msg = await message.reply("📡 Пинг...")
+        end = time.time()
+        await msg.edit_text(f"🏓 Понг! Время отклика: {round((end - start) * 1000, 2)} мс")
+
+    elif command == "check":
+        # Проверка файла (если реплай на файл)
+        if message.reply_to_message and message.reply_to_message.document:
+            file_id = message.reply_to_message.document.file_id
+            file = await bot.get_file(file_id)
+            file_path = file.file_path
+            file_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
+            # Здесь можно реализовать проверку через VirusTotal
+            await message.reply("🔍 Файл получен, проверяю... (заглушка)")
+        else:
+            await message.reply("❌ Ответьте на сообщение с файлом для проверки.")
 
 # --- Запуск ---
-async def send_startup_notification():
-    for owner_id in OWNER_IDS:
-        try:
-            await bot.send_message(owner_id, "✅ Бот запущен и подключен!")
-        except Exception as e:
-            logging.error(f"Не удалось отправить уведомление владельцу {owner_id}: {e}")
-
 async def main():
-    print("✅ Бот запущен! Ожидание соединения...")
-    await send_startup_notification()
-    while True:
-        try:
-            await dp.start_polling(bot, skip_updates=True)
-        except Exception as e:
-            logging.error(f"Ошибка: {e}. Переподключение через 10 секунд...")
-            await asyncio.sleep(10)
-            continue
+    await dp.start_polling(bot)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())
