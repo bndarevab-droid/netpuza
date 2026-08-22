@@ -16,7 +16,7 @@ from aiogram.types import (
 )
 
 # --- Конфигурация ---
-TOKEN = "8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A"
+TOKEN = "8655620590:AAERDoqUPU-jeo-DMRbRTGf4p6-iUUr4stg"
 GROUP_CHAT_ID = -1004493287292              # Чат для ивентов
 OWNER_IDS = [7545129896, 8184136446]
 groza_chat_id = -1003843695003              # Чат "Гроза"
