@@ -19,7 +19,7 @@ from aiogram.types import (
 TOKEN = "8655620590:AAERDoqUPU-jeo-DMRbRTGf4p6-iUUr4stg"
 GROUP_CHAT_ID = -1004493287292              # Чат для ивентов
 OWNER_IDS = [7545129896, 8184136446]
-groza_chat_id = 1003843695003              # Чат "Гроза"
+groza_chat_id = -1003843695003              # Чат "Гроза"
 
 COMMAND_PREFIXES = ("!", ".", "/", "?")
 
