@@ -3,8 +3,6 @@ import random
 import sqlite3
 import time
 import difflib
-import hashlib
-import aiohttp
 import logging
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
@@ -18,12 +16,11 @@ from aiogram.types import (
 )
 
 # --- Конфигурация ---
-TOKEN = "8655620590:AAERDoqUPU-jeo-DMRbRTGf4p6-iUUr4stg"
+TOKEN = "8655620590:AAGehKB669q07WzgY8vzyUT5Ys2JyswnL0A"
 GROUP_CHAT_ID = -1004493287292              # Чат для ивентов
 OWNER_IDS = [7545129896, 8184136446]
 groza_chat_id = -1003843695003              # Чат "Гроза"
 
-VIRUSTOTAL_API_KEY = "1a50f217964693262c833d57736eb75ef9329e38404dd145dedd9902ca75cdae"
 COMMAND_PREFIXES = ("!", ".", "/", "?")
 
 logging.basicConfig(level=logging.INFO)
@@ -616,7 +613,8 @@ async def process_perebiv_minutes(message: types.Message, state: FSMContext):
         game_message = None
         game_task = None
     except ValueError:
-        await message.answer("❌ Введите целое число.")# --- Обработка сообщений в группе для ивентов ---
+        await message.answer("❌ Введите целое число.")
+        # --- Обработка сообщений в группе для ивентов ---
 @dp.message(F.chat.id == GROUP_CHAT_ID, F.content_type.in_({'text', 'photo', 'video', 'document', 'sticker', 'voice', 'video_note', 'animation'}))
 async def handle_event_messages(message: types.Message):
     global game_leader, game_end_time, game_task, game_message, active_event, roulette_message_count
@@ -630,7 +628,6 @@ async def handle_event_messages(message: types.Message):
         roulette_message_count += 1
         if roulette_message_count > 5:  # Первые 5 сообщений не участвуют
             if random.random() * 100 < roulette_chance:
-                # Выигрыш
                 winner = message.from_user
                 prize = "Победа в Legal Roulette"
                 add_win(winner.id, prize)
@@ -650,7 +647,7 @@ async def handle_event_messages(message: types.Message):
 
     # Перебив
     if active_event == "perebiv":
-        # Участник перебил: новый лидер
+        # Новый лидер
         game_leader = (message.from_user.id, message.from_user.username, message.from_user.first_name)
         game_end_time = datetime.now() + timedelta(minutes=perebiv_minutes)
 
@@ -661,7 +658,7 @@ async def handle_event_messages(message: types.Message):
             except asyncio.CancelledError:
                 pass
 
-        # Удаляем прошлое сообщение-таймер, если оно было
+        # Удаляем прошлое сообщение-таймер
         if game_message:
             try:
                 await bot.delete_message(GROUP_CHAT_ID, game_message.message_id)
@@ -677,10 +674,9 @@ async def handle_event_messages(message: types.Message):
             parse_mode="HTML"
         )
 
-        # Запускаем задачу проверки времени
         async def check_perebiv():
+            global active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
             await asyncio.sleep(perebiv_minutes * 60)
-            # Если лидер не сменился, он выиграл
             if game_leader and game_leader[0] == message.from_user.id and active_event == "perebiv":
                 winner_id, username, first_name = game_leader
                 prize = "Победа в Перебиве"
@@ -694,8 +690,6 @@ async def handle_event_messages(message: types.Message):
                     )
                 except Exception:
                     pass
-                # Завершаем ивент
-                nonlocal active_event, perebiv_minutes, game_task, game_message, game_leader, game_end_time
                 active_event = None
                 perebiv_minutes = None
                 game_task = None
@@ -710,14 +704,13 @@ async def handle_event_messages(message: types.Message):
 
         game_task = asyncio.create_task(check_perebiv())
 
-# --- Команды (mute, help, ping, check) ---
+# --- Текстовые команды (mute, help, ping, check) ---
 @dp.message(F.chat.type.in_({"group", "supergroup"}), command_filter)
 async def handle_text_commands(message: types.Message):
     if not bot_enabled:
         return
     command = resolve_command(message.text)
     if command == "mute":
-        # Проверяем права
         if not await is_chat_admin(message.chat.id, message.from_user.id):
             await message.reply("❌ У вас нет прав администратора.")
             return
@@ -788,28 +781,9 @@ async def handle_text_commands(message: types.Message):
         else:
             await message.reply("❌ Ответьте на сообщение с файлом для проверки.")
 
-# --- Обработка ошибок (пересылка владельцам) ---
-@dp.errors()
-async def errors_handler(update: types.Update, exception):
-    # Логируем в консоль
-    logging.exception("Exception while handling an update:", exc_info=exception)
-    # Отправляем сообщение владельцам
-    for owner_id in OWNER_IDS:
-        try:
-            await bot.send_message(
-                owner_id,
-                f"⚠️ <b>Ошибка в боте</b>\n\n"
-                f"<code>{exception}</code>\n\n"
-                f"Update: <code>{update.model_dump_json(indent=2, exclude_none=True)[:1000]}</code>",
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-    return True
-
 # --- Запуск ---
 async def main():
-    # Уведомление о запуске
+    # Уведомление владельцев о запуске
     for owner_id in OWNER_IDS:
         try:
             await bot.send_message(owner_id, "✅ Бот запущен и готов к работе!")
@@ -819,12 +793,12 @@ async def main():
     try:
         await dp.start_polling(bot)
     except Exception as e:
+        logging.exception("Bot crashed")
         for owner_id in OWNER_IDS:
             try:
                 await bot.send_message(owner_id, f"❌ Бот упал с ошибкой:\n{e}")
             except Exception:
                 pass
-        raise
 
 if __name__ == "__main__":
     asyncio.run(main())
